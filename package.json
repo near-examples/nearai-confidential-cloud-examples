@@ -1,0 +1,24 @@
+{
+  "name": "nearai-confidential-cloud-examples",
+  "version": "1.0.0",
+  "description": "Examples for working with NEAR AI Confidential Cloud attestation",
+  "main": "app.js",
+  "type": "module",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "node --watch app.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.3.1",
+    "jose": "^6.1.0"
+  },
+  "keywords": [
+    "nearai",
+    "attestation",
+    "confidential-computing",
+    "nvidia",
+    "tee"
+  ],
+  "author": "",
+  "license": "MIT"
+}
