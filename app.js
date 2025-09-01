@@ -4,10 +4,12 @@ import {
   getGpuAttestation,
   decodeNvidiaAttestation,
   decodeAttestationReport,
-} from "./utils/attestation.js";
+} from "./lib/model-attestation.js";
+import { sendAndVerifyChatMessage } from "./lib/send-and-verify-chat-msg.js";
 
 // You can change this to any model name you want to test
 const MODEL_NAME = "gpt-oss-120b";
+const CHAT_CONTENT = "Respond with only two words";
 
 /**
  * Main function to demonstrate attestation workflow
@@ -29,6 +31,7 @@ async function main() {
     // Step 1: Get model attestation
     const attestationReport = await getModelAttestation(MODEL_NAME);
     const decodedAttestationReport = decodeAttestationReport(attestationReport);
+    console.log("TEE SIGNING ADDRESS:", decodedAttestationReport.signing_address);
 
     // Show detailed formatted report
     // formatAttestationReport(attestationReport);
@@ -40,9 +43,6 @@ async function main() {
       console.log("\n🔄 Verifying GPU attestation with NVIDIA...");
       console.log(
         "🌐 NVIDIA Endpoint: https://nras.attestation.nvidia.com/v3/attest/gpu"
-      );
-      console.log(
-        `📦 Payload type: ${typeof attestationReport.nvidia_payload}`
       );
 
       const gpuVerification = await getGpuAttestation(
@@ -64,6 +64,9 @@ async function main() {
         "   - The model attestation doesn't include GPU-specific data"
       );
     }
+
+    // Step 3: Send and verify chat message
+    await sendAndVerifyChatMessage(CHAT_CONTENT, MODEL_NAME);
 
     console.log("\n✅ Demo completed successfully!");
     console.log("\n📊 Summary:");
