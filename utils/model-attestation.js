@@ -5,55 +5,6 @@ import { decodeJwt } from "jose";
 dotenv.config();
 
 /**
- * Get model attestation report from NEAR AI Cloud
- * @param {string} modelName - Name of the model to get attestation for
- * @returns {Promise<Object>} Attestation report containing signing addresses and TEE proofs
- */
-export async function getModelAttestation(modelName) {
-  const response = await fetch(
-    `https://cloud-api.near.ai/v1/attestation/report?model=${modelName}`,
-    {
-      headers: {
-        Authorization: `Bearer ${process.env.NEARAI_CLOUD_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-    }
-  );
-
-  if (!response.ok) {
-    throw new Error(
-      `Attestation request failed: ${response.status} ${response.statusText}`
-    );
-  }
-
-  return await response.json();
-}
-
-/**
- * Verify NVIDIA GPU attestation using NVIDIA's attestation service
- * @param {string} nvidiaPayload - The nvidia_payload from attestation report
- * @returns {Promise<Object>} Verification result from NVIDIA service with decoded tokens
- */
-export async function getGpuAttestation(nvidiaPayload) {
-  const response = await fetch(
-    "https://nras.attestation.nvidia.com/v3/attest/gpu",
-    {
-      method: "POST",
-      headers: {
-        accept: "application/json",
-        "content-type": "application/json",
-      },
-      body: nvidiaPayload,
-    }
-  );
-
-  if (!response.ok) {
-    throw new Error(`GPU attestation verification failed: ${response.status}`);
-  }
-  return await response.json();
-}
-
-/**
  * Decode NVIDIA attestation response format
  * @param {Array} nvidiaResponse - Array response from NVIDIA containing JWT tokens
  * @returns {Object} Decoded attestation data with JWT and GPU tokens

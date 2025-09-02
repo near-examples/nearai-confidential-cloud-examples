@@ -9,6 +9,7 @@
     "dev": "node --watch app.js"
   },
   "dependencies": {
+    "chalk": "^5.6.0",
     "dotenv": "^16.3.1",
     "ethers": "^6.15.0",
     "jose": "^6.1.0",

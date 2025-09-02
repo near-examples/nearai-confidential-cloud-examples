@@ -10,7 +10,9 @@ dotenv.config();
  */
 function extractChatCompletionId(responseText) {
   try {
-    const firstDataLine = responseText.split('\n').find(line => line.startsWith('data: {'));
+    const firstDataLine = responseText
+      .split("\n")
+      .find((line) => line.startsWith("data: {"));
     if (firstDataLine) {
       const json = JSON.parse(firstDataLine.substring(6));
       return json.id || null;
@@ -40,12 +42,12 @@ async function sendChatMessageRequest(requestBody) {
         body: requestBody,
       }
     );
-    
+
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    // Read the response body to extract the ID
+    // Extract the chat ID from the response
     const responseText = await response.text();
     const chatId = extractChatCompletionId(responseText);
 
@@ -71,28 +73,75 @@ async function getChatMessageSignature(chatId, modelId) {
         headers: {
           accept: "application/json",
           Authorization: `Bearer ${process.env.NEARAI_CLOUD_API_KEY}`,
-        }
+        },
       }
     );
-    
+
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
     const signatureData = await response.json();
-    console.log('\n\nSIGNATURE DATA for ChatId:', chatId, 'and model:', modelId)
-    console.log('--------------------------------')
-    console.log('TEXT:', signatureData.text);
-    console.log('SIGNING ADDRESS:', signatureData.signing_address);
-    console.log('SIGNATURE:', signatureData.signature);
-    console.log('--------------------------------')
     return signatureData;
   } catch (error) {
     console.error("❌ Error getting chat message signature:", error);
     throw error;
   }
-} 
+}
 
+/**
+ * Get model attestation report from NEAR AI Cloud
+ * @param {string} modelName - Name of the model to get attestation for
+ * @returns {Promise<Object>} Attestation report containing signing addresses and TEE proofs
+ */
+async function getModelAttestation(modelName) {
+  const response = await fetch(
+    `https://cloud-api.near.ai/v1/attestation/report?model=${modelName}`,
+    {
+      headers: {
+        Authorization: `Bearer ${process.env.NEARAI_CLOUD_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+    }
+  );
 
-export { sendChatMessageRequest, extractChatCompletionId, getChatMessageSignature };
+  if (!response.ok) {
+    throw new Error(
+      `Attestation request failed: ${response.status} ${response.statusText}`
+    );
+  }
 
+  return await response.json();
+}
+
+/**
+ * Verify NVIDIA GPU attestation using NVIDIA's attestation service
+ * @param {string} nvidiaPayload - The nvidia_payload from attestation report
+ * @returns {Promise<Object>} Verification result from NVIDIA service with decoded tokens
+ */
+async function getGpuAttestation(nvidiaPayload) {
+  const response = await fetch(
+    "https://nras.attestation.nvidia.com/v3/attest/gpu",
+    {
+      method: "POST",
+      headers: {
+        accept: "application/json",
+        "content-type": "application/json",
+      },
+      body: nvidiaPayload,
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`GPU attestation verification failed: ${response.status}`);
+  }
+  return await response.json();
+}
+
+export {
+  sendChatMessageRequest,
+  extractChatCompletionId,
+  getChatMessageSignature,
+  getModelAttestation,
+  getGpuAttestation,
+};

@@ -1,117 +1,119 @@
 #!/usr/bin/env node
 import {
-  getModelAttestation,
-  getGpuAttestation,
   decodeNvidiaAttestation,
   decodeAttestationReport,
-} from "./lib/model-attestation.js";
-import { sendAndVerifyChatMessage } from "./lib/send-and-verify-chat-msg.js";
+} from "./utils/model-attestation.js";
+import { getModelAttestation, getGpuAttestation } from "./utils/api.js";
+import { sendAndVerifyChatMessage } from "./utils/send-and-verify-chat.js";
+import chalk from "chalk";
 
 // You can change this to any model name you want to test
+// See available models at: https://cloud.near.ai/
 const MODEL_NAME = "gpt-oss-120b";
 const CHAT_CONTENT = "Respond with only two words";
+const log = console.log;
 
-/**
- * Main function to demonstrate attestation workflow
- */
 async function main() {
   try {
-    console.log("🚀 Starting NEAR AI Confidential Cloud Attestation Demo\n");
-
-    console.log(`📋 Getting attestation report for model: ${MODEL_NAME}`);
-    console.log(
-      `🌐 API Endpoint: https://cloud-api.near.ai/v1/attestation/report?model=${MODEL_NAME}`
-    );
-    console.log(
-      `🔑 API Key configured: ${
-        process.env.NEARAI_CLOUD_API_KEY ? "Yes" : "No"
-      }`
-    );
+    // Demo Introduction
+    log(chalk.bold("\n\n🚀 Starting NEAR AI Confidential Cloud Demo"));
+    log(`   API Key configured: ${process.env.NEARAI_CLOUD_API_KEY ? chalk.green("Yes") : chalk.red("No")}`);
+    log("===============================================");
+    log(chalk.dim("  - Get an attestation report from NEAR AI Confidential Cloud for model provided"));
+    log(chalk.dim("  - Verify the attestation report w/ NVIDIA attestation service"));
+    log(chalk.dim("  - Send a Chat Message Request to NEAR AI Confidential Cloud"))
+    log(chalk.dim("  - Verify it executed in a secure environment\n\n"));
 
     // Step 1: Get model attestation
+    log(chalk.bold("1) Getting NEAR AI Cloud attestation report:"));
+    log("--------------------------------");
+    log(`🌐 NEAR AI Cloud Endpoint: ${chalk.bold.blue(`https://cloud-api.near.ai/v1/attestation/report`)}`);
     const attestationReport = await getModelAttestation(MODEL_NAME);
     const decodedAttestationReport = decodeAttestationReport(attestationReport);
-    console.log("TEE SIGNING ADDRESS:", decodedAttestationReport.signing_address);
-
-    // Show detailed formatted report
-    // formatAttestationReport(attestationReport);
-
-    console.log("===============================================");
+    const teeSigningAddress = decodedAttestationReport.signing_address;
+    log("   NEAR AI TEE SIGNING ADDRESS:", chalk.yellow(teeSigningAddress));
+    log("   AI Model:", chalk.cyan(MODEL_NAME));
 
     // Step 2: Verify GPU attestation if NVIDIA payload is present
     if (attestationReport.nvidia_payload) {
-      console.log("\n🔄 Verifying GPU attestation with NVIDIA...");
-      console.log(
-        "🌐 NVIDIA Endpoint: https://nras.attestation.nvidia.com/v3/attest/gpu"
+      log(chalk.bold("\n\n2) Verifying attestation report with NVIDIA:"));
+      log("--------------------------------");
+      log(
+        `🌐 NVIDIA AttestationEndpoint: ${chalk.bold.blue("https://nras.attestation.nvidia.com/v3/attest/gpu")}`
       );
 
       const gpuVerification = await getGpuAttestation(
         attestationReport.nvidia_payload
       );
       const decodedGpuVerification = decodeNvidiaAttestation(gpuVerification);
-      const gpuAttestationOverallResult =
-        decodedGpuVerification.JWT["x-nvidia-overall-att-result"];
-
-      console.log("Decoded overall attestation: ", gpuAttestationOverallResult);
+      const gpuAttestationOverallResult = decodedGpuVerification.JWT["x-nvidia-overall-att-result"];
+      log('   RESULT:', gpuAttestationOverallResult ? '✅ Overall Attestation PASSED' : '❌ Overall Attestation FAILED');
     } else {
-      console.log("\n⚠️  No NVIDIA payload found in attestation report");
-      console.log("💡 This might mean:");
-      console.log("   - The model is not running on NVIDIA hardware");
-      console.log(
+      log("\n⚠️  No NVIDIA payload found in attestation report");
+      log("💡 This might mean:");
+      log("   - The model is not running on NVIDIA hardware");
+      log(
         "   - The attestation service is not configured for GPU verification"
       );
-      console.log(
+      log(
         "   - The model attestation doesn't include GPU-specific data"
       );
     }
 
     // Step 3: Send and verify chat message
-    await sendAndVerifyChatMessage(CHAT_CONTENT, MODEL_NAME);
+    log(chalk.bold("\n\n3) Sending and verifying chat message..."));
+    log("--------------------------------");
+    log(`🌐 NEAR AI Cloud Endpoint: ${chalk.bold.blue("https://cloud-api.near.ai/v1/chat/completions")}`);
+    log(`   TEE AI Model:     ${chalk.cyan(MODEL_NAME)}`);
+    log(`   Chat Msg Sent:    ${chalk.cyan(CHAT_CONTENT)}`);
+    
+    const chatResult = await sendAndVerifyChatMessage(CHAT_CONTENT, MODEL_NAME, teeSigningAddress);
+    
+    log(`   Returned Chat ID: ${chalk.cyan(chatResult.response.chatId)}`);
+    log(`   TEE Address:      ${chalk.yellow(teeSigningAddress)}`);
 
-    console.log("\n✅ Demo completed successfully!");
-    console.log("\n📊 Summary:");
-    console.log(`   Model: ${MODEL_NAME}`);
-    console.log(
-      `   Attestation report size: ${
-        JSON.stringify(attestationReport).length
-      } characters`
-    );
-    console.log(
-      `   NVIDIA payload present: ${
-        attestationReport.nvidia_payload ? "Yes" : "No"
-      }`
-    );
-    if (attestationReport.nvidia_payload) {
-      console.log(`   GPU verification attempted: Yes`);
-    }
+    log(`\n   ${chalk.bold(" 🔎 Checking if hash values match:")}`);
+    log("       --------------------------------");
+    log(`     → REQUEST HASH ${chatResult.hashValidation.requestHashMatch ? '✅' : '❌'}`);
+    log(`       Sent   (Expected):  ${chalk.yellow(chatResult.hashValidation.signedRequestHash)}`);
+    log(`       Returned (Actual):  ${chalk.yellow(chatResult.requestHash)}`);
+    log(`     ← RESPONSE HASH ${chatResult.hashValidation.responseHashMatch ? '✅' : '❌'}`);
+    log(`       Signed (Expected):  ${chalk.yellow(chatResult.hashValidation.signedResponseHash)}`);
+    log(`       Returned (Actual):  ${chalk.yellow(chatResult.responseHash)}`);
+    log("       --------------------------------");
+    log(`       RESULT: ${chatResult.hashValidation.valid ? '✅ HASHES VALID' : '❌ HASHES INVALID'}`);
+            
+    log(`\n    ${chalk.bold("🔑 Verifying signature returned by NEAR AI Cloud:")}`);
+    log("       --------------------------------");
+    log(`       Expected TEE Address:  ${chalk.yellow(chatResult.signatureValidation.expectedAddress)}`);
+    log(`       Recovered TEE Address: ${chalk.yellow(chatResult.signatureValidation.recoveredAddress)}`);
+    log("       --------------------------------");
+    log(`       RESULT: ${chatResult.signatureValidation.valid ? '✅ SIGNATURE VERIFIED' : '❌ SIGNATURE INVALID'}`);
+
+
+    log("\n✅ Demo complete!");
   } catch (error) {
-    console.error("\n❌ Error occurred:");
-    console.error(`   ${error.message}`);
-    console.error(`   Error type: ${error.constructor.name}`);
-
-    if (error.stack) {
-      console.error("\n📍 Stack trace:");
-      console.error(error.stack);
-    }
+    error("\n❌ Error occurred:");
+    error(`   ${error.message}`);
+    error(`   Error type: ${error.constructor.name}`);
 
     if (
       error.message.includes("401") ||
       error.message.includes("Authorization")
     ) {
-      console.error(
+      error(
         "\n💡 Tip: Make sure your NEARAI_CLOUD_API_KEY is set in the .env file"
       );
     } else if (error.message.includes("fetch")) {
-      console.error(
+      error(
         "\n💡 Tip: Check your internet connection and API endpoints"
       );
     } else if (error.message.includes("404")) {
-      console.error("\n💡 Tip: The model name might not exist or be available");
+      error("\n💡 Tip: The model name might not exist or be available");
     }
 
     process.exit(1);
   }
 }
 
-// Run the main function
 main();
