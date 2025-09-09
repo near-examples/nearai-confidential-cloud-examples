@@ -93,23 +93,23 @@ async function main() {
 
     log("\n✅ Demo complete!");
   } catch (error) {
-    error("\n❌ Error occurred:");
-    error(`   ${error.message}`);
-    error(`   Error type: ${error.constructor.name}`);
+    console.error("\n❌ Error occurred:");
+    console.error(`   ${error.message}`);
+    console.error(`   Error type: ${error.constructor.name}`);
 
     if (
       error.message.includes("401") ||
       error.message.includes("Authorization")
     ) {
-      error(
+      console.error(
         "\n💡 Tip: Make sure your NEARAI_CLOUD_API_KEY is set in the .env file"
       );
     } else if (error.message.includes("fetch")) {
-      error(
+      console.error(
         "\n💡 Tip: Check your internet connection and API endpoints"
       );
     } else if (error.message.includes("404")) {
-      error("\n💡 Tip: The model name might not exist or be available");
+      console.error("\n💡 Tip: The model name might not exist or be available");
     }
 
     process.exit(1);
