@@ -5,7 +5,7 @@ import { sha256sum, compareHashes, verifySignature } from './verification-helper
 
 dotenv.config();
 
-async function sendAndVerifyChatMessage(chatContent, modelId, expectedAddress) {
+async function sendAndVerifyChatMessage(chatContent, modelId, expectedAddresses) {
   const requestBody = JSON.stringify({
     "messages": [
       {
@@ -31,8 +31,8 @@ async function sendAndVerifyChatMessage(chatContent, modelId, expectedAddress) {
     // Step 4: Validate hashes returned by NEAR AI Confidential Cloud
     const hashValidation = compareHashes(signature.text, requestHash, responseHash);
 
-    // Step 5: Verify signature returned by NEAR AI Confidential Cloud
-    const signatureValidation = await verifySignature(signature.text, signature.signature, expectedAddress);
+    // Step 5: Verify signature returned by NEAR AI Confidential Cloud (accepts single address or array)
+    const signatureValidation = await verifySignature(signature.text, signature.signature, expectedAddresses);
 
     return {
       chatContent,

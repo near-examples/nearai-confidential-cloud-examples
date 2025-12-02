@@ -1,18 +1,24 @@
 import { ethers } from "ethers";
 import { createHash } from "crypto";
 
-async function verifySignature(message, signature, expectedAddress) {
+async function verifySignature(message, signature, expectedAddresses) {
   try {
     // Recover address from the signature
     const recoveredAddress = ethers.verifyMessage(message, signature);
 
-    // Compare with expected address (case-insensitive)
-    const isValid =
-      recoveredAddress.toLowerCase() === expectedAddress.toLowerCase();
+    // Normalize expectedAddresses to array
+    const addressArray = Array.isArray(expectedAddresses)
+      ? expectedAddresses
+      : [expectedAddresses];
+
+    // Compare with expected addresses (case-insensitive)
+    const isValid = addressArray.some(
+      addr => recoveredAddress.toLowerCase() === addr.toLowerCase()
+    );
 
     return {
       valid: isValid,
-      expectedAddress,
+      expectedAddresses: addressArray,
       recoveredAddress,
       message,
     };
@@ -20,7 +26,7 @@ async function verifySignature(message, signature, expectedAddress) {
     return {
       valid: false,
       error: error.message,
-      expectedAddress,
+      expectedAddresses: Array.isArray(expectedAddresses) ? expectedAddresses : [expectedAddresses],
       recoveredAddress: null,
       message,
     };

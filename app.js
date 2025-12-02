@@ -1,23 +1,21 @@
 #!/usr/bin/env node
 import {
   decodeNvidiaAttestation,
-  decodeAttestationReport,
 } from "./utils/model-attestation.js";
 import { getModelAttestation, getGpuAttestation } from "./utils/api.js";
 import { sendAndVerifyChatMessage } from "./utils/send-and-verify-chat.js";
 import chalk from "chalk";
 
 // You can change this to any model name you want to test
-// See available models at: https://cloud.near.ai/
-const MODEL_NAME = "gpt-oss-120b";
+// See available models at: https://docs.near.ai/cloud/models
+const MODEL_NAME = "deepseek-ai/DeepSeek-V3.1";
 const CHAT_CONTENT = "Respond with only two words";
 const log = console.log;
 
 async function main() {
   try {
-    // Demo Introduction
-    log(chalk.bold("\n\n🚀 Starting NEAR AI Confidential Cloud Demo"));
-    log(`   API Key configured: ${process.env.NEARAI_CLOUD_API_KEY ? chalk.green("Yes") : chalk.red("No")}`);
+    log(chalk.bold("\n\n🚀 Starting NEAR AI Cloud Verification Demo"));
+    log(`   API Key configured: ${process.env.NEARAI_CLOUD_API_KEY ? chalk.bold.green("Yes") : chalk.bold.red("No")}`);
     log("===============================================");
     log(chalk.dim("  - Get an attestation report from NEAR AI Confidential Cloud for model provided"));
     log(chalk.dim("  - Verify the attestation report w/ NVIDIA attestation service"));
@@ -29,25 +27,57 @@ async function main() {
     log("--------------------------------");
     log(`🌐 NEAR AI Cloud Endpoint: ${chalk.bold.blue(`https://cloud-api.near.ai/v1/attestation/report`)}`);
     const attestationReport = await getModelAttestation(MODEL_NAME);
-    const decodedAttestationReport = decodeAttestationReport(attestationReport);
-    const teeSigningAddress = decodedAttestationReport.signing_address;
-    log("   NEAR AI TEE SIGNING ADDRESS:", chalk.yellow(teeSigningAddress));
+
+    // Extract all signing addresses from model_attestations array
+    const teeSigningAddresses = [];
+    if (attestationReport.model_attestations && attestationReport.model_attestations.length > 0) {
+      attestationReport.model_attestations.forEach(attestation => {
+        if (attestation.signing_address && !teeSigningAddresses.includes(attestation.signing_address)) {
+          teeSigningAddresses.push(attestation.signing_address);
+        }
+      });
+    }
+
+    log("   NEAR AI TEE SIGNING ADDRESSES:", chalk.yellow(teeSigningAddresses.join(', ')));
     log("   AI Model:", chalk.cyan(MODEL_NAME));
 
-    // Step 2: Verify GPU attestation if NVIDIA payload is present
-    if (attestationReport.nvidia_payload) {
+    // Step 2: Verify GPU attestation if NVIDIA payload(s) are present
+    let nvidiaPayloads = [];
+    if (attestationReport.model_attestations && attestationReport.model_attestations.length > 0) {
+      // Find all attestations with nvidia_payload
+      const attestationsWithNvidia = attestationReport.model_attestations.filter(
+        attestation => attestation.nvidia_payload
+      );
+      nvidiaPayloads = attestationsWithNvidia.map(attestation => attestation.nvidia_payload);
+    }
+
+    if (nvidiaPayloads.length > 0) {
       log(chalk.bold("\n\n2) Verifying attestation report with NVIDIA:"));
       log("--------------------------------");
       log(
         `🌐 NVIDIA AttestationEndpoint: ${chalk.bold.blue("https://nras.attestation.nvidia.com/v3/attest/gpu")}`
       );
+      log(`📊 Found ${nvidiaPayloads.length} NVIDIA payload(s) to verify \n`);
 
-      const gpuVerification = await getGpuAttestation(
-        attestationReport.nvidia_payload
-      );
-      const decodedGpuVerification = decodeNvidiaAttestation(gpuVerification);
-      const gpuAttestationOverallResult = decodedGpuVerification.JWT["x-nvidia-overall-att-result"];
-      log('   RESULT:', gpuAttestationOverallResult ? '✅ Overall Attestation PASSED' : '❌ Overall Attestation FAILED');
+      const gpuVerifications = [];
+      let allGpuVerificationsPassed = true;
+      
+      log("    🔍 Verifying NVIDIA payloads:")
+      log("       --------------------------------");
+      for (let i = 0; i < nvidiaPayloads.length; i++) {
+        const gpuVerification = await getGpuAttestation(nvidiaPayloads[i]);
+        gpuVerifications.push(gpuVerification);
+        
+        const decodedGpuVerification = decodeNvidiaAttestation(gpuVerification);
+        const gpuAttestationOverallResult = decodedGpuVerification.JWT["x-nvidia-overall-att-result"];
+        log(`       Payload ${i + 1}/${nvidiaPayloads.length}: `, gpuAttestationOverallResult ? '✅ Overall Attestation PASSED' : '❌ Overall Attestation FAILED');
+        
+        if (!gpuAttestationOverallResult) {
+          allGpuVerificationsPassed = false;
+        }
+      }
+      log("       --------------------------------");
+      log(`       RESULT: ${gpuVerifications.length} NVIDIA payload(s) checked -> ${allGpuVerificationsPassed ? '✅ ALL PASSED' : '❌ SOME FAILED'}`);
     } else {
       log("\n⚠️  No NVIDIA payload found in attestation report");
       log("💡 This might mean:");
@@ -66,11 +96,11 @@ async function main() {
     log(`🌐 NEAR AI Cloud Endpoint: ${chalk.bold.blue("https://cloud-api.near.ai/v1/chat/completions")}`);
     log(`   TEE AI Model:     ${chalk.cyan(MODEL_NAME)}`);
     log(`   Chat Msg Sent:    ${chalk.cyan(CHAT_CONTENT)}`);
-    
-    const chatResult = await sendAndVerifyChatMessage(CHAT_CONTENT, MODEL_NAME, teeSigningAddress);
-    
+
+    const chatResult = await sendAndVerifyChatMessage(CHAT_CONTENT, MODEL_NAME, teeSigningAddresses);
+
     log(`   Returned Chat ID: ${chalk.cyan(chatResult.response.chatId)}`);
-    log(`   TEE Address:      ${chalk.yellow(teeSigningAddress)}`);
+    log(`   TEE Addresses:    ${chalk.yellow(teeSigningAddresses.join(', '))}`);
 
     log(`\n   ${chalk.bold(" 🔎 Checking if hash values match:")}`);
     log("       --------------------------------");
@@ -85,13 +115,13 @@ async function main() {
             
     log(`\n    ${chalk.bold("🔑 Verifying signature returned by NEAR AI Cloud:")}`);
     log("       --------------------------------");
-    log(`       Expected TEE Address:  ${chalk.yellow(chatResult.signatureValidation.expectedAddress)}`);
-    log(`       Recovered TEE Address: ${chalk.yellow(chatResult.signatureValidation.recoveredAddress)}`);
+    log(`       Expected TEE Addresses: ${chalk.yellow(chatResult.signatureValidation.expectedAddresses.join(', '))}`);
+    log(`       Recovered TEE Address:  ${chalk.yellow(chatResult.signatureValidation.recoveredAddress)}`);
     log("       --------------------------------");
     log(`       RESULT: ${chatResult.signatureValidation.valid ? '✅ SIGNATURE VERIFIED' : '❌ SIGNATURE INVALID'}`);
 
 
-    log("\n✅ Demo complete!");
+    log("\n✅  Verification Demo complete!");
   } catch (error) {
     console.error("\n❌ Error occurred:");
     console.error(`   ${error.message}`);
