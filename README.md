@@ -1,12 +1,12 @@
-# NEAR AI Confidential Cloud Examples
+# NEAR AI Cloud Verification Example
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js](https://img.shields.io/badge/Node.js-18%2B-green.svg)](https://nodejs.org/)
-[![NEAR AI](https://img.shields.io/badge/NEAR-AI-blue.svg)](https://cloud.near.ai/)
+[![NEAR AI Docs](https://img.shields.io/badge/NEAR_AI-Docs-blue.svg)](https://docs.near.ai/)
 
 > 🚀 **Learn how to build secure, verifiable AI applications using NEAR AI Confidential Cloud**
 
-This repository demonstrates how to interact with NEAR AI's Confidential Cloud platform, verify attestations, and ensure your AI workloads run in secure, trusted execution environments (TEEs).
+This repository demonstrates how to interact with NEAR AI's Cloud platform, verify attestations, and ensure your AI workloads run in secure, trusted execution environments (TEEs).
 
 ## 🌟 What You'll Learn
 
@@ -29,14 +29,14 @@ This repository demonstrates how to interact with NEAR AI's Confidential Cloud p
 ### 1. Clone and Install
 
 ```bash
-git clone https://github.com/near-examples/nearai-confidential-cloud-examples.git
-cd nearai-confidential-cloud-examples
+git clone https://github.com/near-examples/nearai-cloud-verification-example.git
+cd nearai-cloud-verification-example
 pnpm install  # or npm install
 ```
 
 ### 2. Configure Environment
 
-Create a `.env` file with your NEAR AI Cloud API key:
+Create a `.env` file with your NEAR AI Cloud API key: _(Get yours at https://cloud.near.ai)_
 
 ```bash
 # .env
@@ -55,7 +55,7 @@ The main demo (`app.js`) walks through a complete confidential AI workflow:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  🚀 NEAR AI Confidential Cloud Demo                         │
+│  🚀 NEAR AI Cloud Verification Demo                         │
 ├─────────────────────────────────────────────────────────────┤
 │  1) Get Attestation Report                                  │
 │     ├─ Fetch model attestation from NEAR AI Cloud           │
@@ -84,7 +84,7 @@ nearai-confidential-cloud-examples/
 │   ├── send-and-verify-chat.js     #    Chat workflow
 │   └── verification-helpers.js     #    Crypto verification
 ├── package.json                    # 📦 Dependencies
-└── .env                            # 🔐 API configuration
+└── .env                            # 🔐 API key configuration
 ```
 
 ## 🔧 Core Components
@@ -104,10 +104,7 @@ const signature = await getChatMessageSignature(chatId, modelId);
 ### 🛡️ Attestation Verification (`utils/model-attestation.js`)
 
 ```javascript
-import { decodeAttestationReport, decodeNvidiaAttestation } from './utils/model-attestation.js';
-
-// Decode attestation report structure
-const decoded = decodeAttestationReport(attestationReport);
+import { decodeNvidiaAttestation } from './utils/model-attestation.js';
 
 // Process NVIDIA attestation response
 const nvidiaResult = decodeNvidiaAttestation(gpuVerification);
@@ -141,37 +138,9 @@ const hash = sha256sum(data);
 Edit `app.js` to test different models:
 
 ```javascript
-// Available models at: https://cloud.near.ai/
-const MODEL_NAME = "gpt-oss-120b";        // GPT model
-const MODEL_NAME = "llama-3.3-70b-instruct"; // Llama model
-```
-
-## 🔍 Understanding the Output
-
-### ✅ Successful Verification
-
-```
-🚀 Starting NEAR AI Confidential Cloud Demo
-   API Key configured: Yes
-===============================================
-
-1) Getting NEAR AI Cloud attestation report:
-   NEAR AI TEE SIGNING ADDRESS: 0x1234...abcd
-   AI Model: gpt-oss-120b
-
-2) Verifying attestation report with NVIDIA:
-   RESULT: ✅ Overall Attestation PASSED
-
-3) Sending and verifying chat message...
-   🔎 Checking if hash values match:
-     → REQUEST HASH ✅
-     ← RESPONSE HASH ✅
-     RESULT: ✅ HASHES VALID
-
-   🔑 Verifying signature returned by NEAR AI Cloud:
-     RESULT: ✅ SIGNATURE VERIFIED
-
-✅ Demo complete!
+// Available models at: https://docs.near.ai/cloud/models/
+const MODEL_NAME = "deepseek-ai/DeepSeek-V3.1";    // DeepSeek Model
+const MODEL_NAME = "zai-org/GLM-4.6";              // GLM 4.6 Model
 ```
 
 ### 🔒 Security Guarantees
@@ -196,7 +165,7 @@ Error: 401 Unauthorized
 **❌ Model Not Available**
 ```bash
 Error: 404 Not Found
-💡 Tip: The model name might not exist or be available
+💡 Tip: The model name might have a typo or might not be available
 ```
 
 **❌ Network Issues**
@@ -217,17 +186,9 @@ And external verification:
 
 - **NVIDIA Attestation**: `https://nras.attestation.nvidia.com/v3/attest/gpu`
 
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/amazing-feature`
-3. Commit changes: `git commit -m 'Add amazing feature'`
-4. Push to branch: `git push origin feature/amazing-feature`
-5. Open a Pull Request
-
 ## 📚 Learn More
 
-- **[NEAR AI Cloud Documentation](https://docs.near.ai/cloud)**
+- **[NEAR AI Cloud Documentation](https://docs.near.ai)**
 - **[NVIDIA Confidential Computing](https://www.nvidia.com/en-us/data-center/solutions/confidential-computing/)**
 - **[NVIDIA Attestation Service](https://docs.api.nvidia.com/attestation/reference/attestationinfo)**
 - **[Trusted Execution Environments](https://en.wikipedia.org/wiki/Trusted_execution_environment)**
